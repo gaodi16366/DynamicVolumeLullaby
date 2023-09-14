@@ -1,6 +1,7 @@
 package com.example.dynamicvolumelullaby
 
 import android.app.Application
+import android.media.AudioFormat
 import android.media.AudioFormat.CHANNEL_IN_STEREO
 import android.util.Log
 import android.widget.Toast
@@ -50,8 +51,8 @@ fun recordSound(type: RecordType){
         rm.init(context,false)
         rm.changeRecordDir(directory.path+"/")
         rm.recordConfig.sampleRate = 44100
-        rm.recordConfig.channelConfig= CHANNEL_IN_STEREO
-        rm.changeFormat(RecordConfig.RecordFormat.MP3)
+        rm.recordConfig.channelConfig= AudioFormat.CHANNEL_IN_MONO
+        rm.changeFormat(RecordConfig.RecordFormat.WAV)
         if(type == RecordType.BABY){
             cleanFftData()
             rm.setRecordFftDataListener { recordFftData(it) }
@@ -81,7 +82,11 @@ fun stopRecord(type: RecordType){
     val rm: RecordManager = RecordManager.getInstance()
     synchronized(recordLock){
         if (!rm.recordConfig.recordDir.contains(type.toString()) || rm.state != RecordHelper.RecordState.RECORDING){
-            Toast.makeText(context,"$type sound not recording", Toast.LENGTH_SHORT).show()
+            if (type == RecordType.MONITOR){
+                Toast.makeText(context,"Baby sound is not monitored", Toast.LENGTH_SHORT).show()
+            }else{
+                Toast.makeText(context,"$type sound not recording", Toast.LENGTH_SHORT).show()
+            }
             return
         }
         rm.setRecordResultListener{
