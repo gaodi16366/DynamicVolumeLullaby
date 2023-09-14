@@ -10,6 +10,8 @@ import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -36,7 +38,11 @@ import androidx.core.app.ActivityCompat
 import com.example.dynamicvolumelullaby.ui.theme.DynamicVolumeLullabyTheme
 import com.example.dynamicvolumelullaby.ui.theme.Orange
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.io.OutputStream
 import java.lang.Float.max
+import java.util.Properties
 import kotlin.math.min
 
 const val configPath: String = "config.properties"
@@ -45,9 +51,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         applyPermission()
         context = this.application
-        LoadSoundAndConfig()
-        val audioManager = applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        currentVolumeLive.postValue(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
+        loadSoundAndConfig(applicationContext)
 
         setContent {
             DynamicVolumeLullabyTheme {
@@ -230,30 +234,9 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
 
 }
 
-fun saveConfig() {
-    val file: File = File(context?.filesDir, configPath)
-    /*
-    * do nothing
-    * */
-}
-
-
 @Preview
 @Composable
 fun RenderApp(){
     ButtonAndImage(modifier = Modifier.fillMaxSize())
-}
-
-fun LoadSoundAndConfig() {
-    /* do nothing*/
-    var appDirectory:File = context!!.filesDir
-    RecordType.values().forEach {
-        val directory: File = File(appDirectory, it.toString())
-        val fileList = directory?.listFiles()
-        if (fileList !=null){
-            fileList.sortByDescending { it -> it.lastModified() }
-            typeSoundPaths[it] = fileList[fileList.size-1]
-        }
-    }
 }
 
