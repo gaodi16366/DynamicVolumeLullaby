@@ -1,8 +1,10 @@
 package com.example.dynamicvolumelullaby
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Build.VERSION.SDK_INT
@@ -25,18 +27,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
-import androidx.lifecycle.LiveData
 import com.example.dynamicvolumelullaby.ui.theme.DynamicVolumeLullabyTheme
+import com.example.dynamicvolumelullaby.ui.theme.Orange
 import java.io.File
 import java.lang.Float.max
 import kotlin.math.min
@@ -47,6 +45,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         applyPermission()
         context = this.application
+        LoadSoundAndConfig()
+        val audioManager = context!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        currentVolumeLive.postValue(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
+
         setContent {
             DynamicVolumeLullabyTheme {
                 RenderApp()
@@ -89,23 +91,15 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ButtonAndImage(modifier: Modifier = Modifier, amplifierLive:LiveData<Float>, baseFftLive: LiveData<Array<Pair<Int, Double>>>){
-    val amplifier by amplifierLive.observeAsState()
-    val baseFft by baseFftLive.observeAsState()
-    var basicVolume by remember { mutableFloatStateOf(0.5f) }
-    var minVolume by remember {
-        mutableFloatStateOf(0f)
-    }
-    var maxVolume by remember { mutableFloatStateOf(1f) }
-    var tempVolume = basicVolume * amplifier!!
-    
-    val nextVolume =  if(tempVolume >maxVolume ){
-        maxVolume
-    }else if (tempVolume < minVolume){
-        minVolume
-    }else{
-        tempVolume
-    }
+fun ButtonAndImage(modifier: Modifier = Modifier){
+    val basicVolume by basicVolumeLive.observeAsState()
+    val minVolume by minVolumeLive.observeAsState()
+    val maxVolume by maxVolumeLive.observeAsState()
+    val currentVolume by currentVolumeLive.observeAsState()
+    val baseFft:Array<Pair<Int,Double>>? by baseFftLive.observeAsState()
+
+    val audioManager = context!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    val volumeIndex = currentVolume!!.toFloat()/audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
 
     saveConfig()
 
@@ -113,7 +107,7 @@ fun ButtonAndImage(modifier: Modifier = Modifier, amplifierLive:LiveData<Float>,
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
     ){
-        Text(text = "Baby sound", color = Color.Yellow)
+        Text(text = "Baby sound", color = Orange)
         Row(){
             Button(onClick = { recordSound(RecordType.BABY) }) {
                 Image(painter = painterResource(R.drawable.baseline_fiber_manual_record_24), contentDescription = "Record")
@@ -128,46 +122,52 @@ fun ButtonAndImage(modifier: Modifier = Modifier, amplifierLive:LiveData<Float>,
                 Image(painter = painterResource(R.drawable.baseline_play_arrow_24), contentDescription = "Play")
             }
         }
-        Text(text = baseFft?.joinToString("\n") ?: "No baby sound recorded yet")
+        Text(text = baseFft!!.joinToString("\n"), color = Orange)
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Text(text = "Volume", color = Color.Yellow)
+        Text(text = "Volume", color = Orange)
 
         Row(){
-            Text(text = "basic volume ", color = Color.Blue ,modifier = Modifier
+            Text(text = "basic volume ", color = Orange ,modifier = Modifier
                 .align(Alignment.CenterVertically)
                 .width(100.dp))
-            Slider(value = basicVolume, onValueChange ={
-                basicVolume = if(it<minVolume){
-                    minVolume
-                }else if(it>maxVolume){
-                    maxVolume
-                }else{
-                    it
-                }
-                                                       },
-                modifier = Modifier.padding(end= 10.dp) )
+            Slider(value = basicVolume!!,
+                onValueChange ={
+                    var nextBasicVolume =  if(it<minVolume!!){
+                        minVolume
+                    }else if(it>maxVolume!!){
+                        maxVolume
+                    }else{
+                        it
+                    }
+                    basicVolumeLive.postValue(nextBasicVolume) },
+                modifier = Modifier.padding(end= 10.dp)
+            )
         }
         Row(){
-            Text(text = "min volume", color = Color.Blue ,modifier = Modifier
+            Text(text = "min volume", color = Orange ,modifier = Modifier
                 .align(Alignment.CenterVertically)
                 .width(100.dp))
-            Slider(value = minVolume, onValueChange ={ minVolume = min(it, basicVolume) }, modifier = Modifier.padding(end= 10.dp))
+            Slider(value = minVolume!!,
+                onValueChange ={ minVolumeLive.postValue( min(it, basicVolume!!)) },
+                modifier = Modifier.padding(end= 10.dp))
         }
         Row(){
-            Text(text = "max volume", color = Color.Blue ,modifier = Modifier
+            Text(text = "max volume", color = Orange ,modifier = Modifier
                 .align(Alignment.CenterVertically)
                 .width(100.dp))
-            Slider(value = maxVolume, onValueChange ={ maxVolume = max(it, basicVolume)}, modifier = Modifier.padding(end= 10.dp))
+            Slider(value = maxVolume!!,
+                onValueChange ={ maxVolumeLive.postValue( max(it, basicVolume!!))},
+                modifier = Modifier.padding(end= 10.dp))
         }
         Row(){
             Text(text = "current volume",
-                color = Color.Blue ,
+                color = Orange ,
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
                     .width(100.dp))
-            Slider(value = nextVolume,
+            Slider(value = volumeIndex,
                 onValueChange ={ /* nothing */},
                 modifier = Modifier
                     .padding(end= 10.dp))
@@ -175,7 +175,7 @@ fun ButtonAndImage(modifier: Modifier = Modifier, amplifierLive:LiveData<Float>,
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Text(text = "Your sound", color = Color.Yellow)
+        Text(text = "Your sound", color = Orange)
         Row(){
             Button(onClick = { recordSound(RecordType.PARENT) }) {
                 Image(painter = painterResource(R.drawable.baseline_fiber_manual_record_24), contentDescription = "Record")
@@ -184,14 +184,31 @@ fun ButtonAndImage(modifier: Modifier = Modifier, amplifierLive:LiveData<Float>,
                 Image(painter = painterResource(R.drawable.baseline_stop_24), contentDescription = "Play")
             }
             Button(onClick = {
+                startMonitoring(typeSoundPaths[RecordType.PARENT])
+            }) {
+                Image(painter = painterResource(R.drawable.baseline_play_arrow_24), contentDescription = "Play")
+            }
+            Button(onClick = {
+                stopMonitoring()
+            })
+            {
+                Image(painter = painterResource(R.drawable.baseline_pause_24), contentDescription = "Play")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Text(text = "Monitor baby sound", color = Orange)
+        Row(){
+            Button(onClick = {
                 recordSound(RecordType.MONITOR)
-                startPlaying(typeSoundPaths[RecordType.PARENT])
+                startMonitoring(typeSoundPaths[RecordType.PARENT])
             }) {
                 Image(painter = painterResource(R.drawable.baseline_play_arrow_24), contentDescription = "Play")
             }
             Button(onClick = {
                 stopRecord(RecordType.MONITOR)
-                stopPlaying()
+                stopMonitoring()
             })
             {
                 Image(painter = painterResource(R.drawable.baseline_pause_24), contentDescription = "Play")
@@ -202,7 +219,7 @@ fun ButtonAndImage(modifier: Modifier = Modifier, amplifierLive:LiveData<Float>,
 }
 
 fun saveConfig() {
-    val file: File = File(context!!.filesDir, configPath)
+    val file: File = File(context?.filesDir, configPath)
     /*
     * do nothing
     * */
@@ -212,11 +229,19 @@ fun saveConfig() {
 @Preview
 @Composable
 fun RenderApp(){
-    LoadSoundAndConfig()
-    ButtonAndImage(modifier = Modifier.fillMaxSize(), amplifierLive = amplifierLive, baseFftLive = baseFftLive)
+    ButtonAndImage(modifier = Modifier.fillMaxSize())
 }
 
 fun LoadSoundAndConfig() {
     /* do nothing*/
+    var appDirectory:File = context!!.filesDir
+    RecordType.values().forEach {
+        val directory: File = File(appDirectory, it.toString())
+        val fileList = directory?.listFiles()
+        if (fileList !=null){
+            fileList.sortByDescending { it -> it.lastModified() }
+            typeSoundPaths[it] = fileList[fileList.size-1]
+        }
+    }
 }
 

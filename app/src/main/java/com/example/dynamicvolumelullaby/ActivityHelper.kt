@@ -1,8 +1,6 @@
 package com.example.dynamicvolumelullaby
 
 import android.app.Application
-import android.content.Context
-import android.content.Intent
 import android.media.AudioFormat.CHANNEL_IN_STEREO
 import android.util.Log
 import android.widget.Toast
@@ -12,8 +10,6 @@ import com.zlw.main.recorderlib.recorder.RecordConfig
 import com.zlw.main.recorderlib.recorder.RecordHelper
 import java.io.File
 import java.lang.Integer.min
-import java.util.Date
-import java.util.LinkedList
 
 enum class RecordType{
     BABY,
@@ -32,12 +28,12 @@ var count: Int =0
 const val sampleNumber:Int = 10
 
 val baseFftLive : MutableLiveData<Array<Pair<Int,Double>>> = MutableLiveData(Array(sampleNumber){Pair(0,0.0)})
-val amplifierLive = MutableLiveData<Float>(1.0f)
+val basicVolumeLive  = MutableLiveData<Float>(0.5f)
+val minVolumeLive  = MutableLiveData<Float>(0.0f)
+val maxVolumeLive  = MutableLiveData<Float>(1.0f)
+val currentVolumeLive = MutableLiveData<Int>(7)
 
 var typeSoundPaths:MutableMap<RecordType,File> = HashMap()
-
-var monitorFftDataSum: DoubleArray = DoubleArray(sampleNumber){0.0}
-var previousDateTime: Date? = null
 
 
 fun recordSound(type: RecordType){
@@ -61,11 +57,17 @@ fun recordSound(type: RecordType){
             rm.setRecordFftDataListener { recordFftData(it) }
         }
         if (type == RecordType.MONITOR){
+            var sum:Double = 0.0
+            if (baseFftLive.value!!.isEmpty() ||baseFftLive.value!!.any { it.second< 0.001 }){
+                Toast.makeText(context,"Baby sound not recorded or too low to record correctly", Toast.LENGTH_SHORT).show()
+                return
+            }
             rm.setRecordFftDataListener{
-                calculateAmplifier(it)
+                setNextVolume(it)
             }
         }
-        rm.start();
+        rm.start()
+        Toast.makeText(context,"$type sound start recording", Toast.LENGTH_SHORT).show()
     }
 }
 
@@ -124,15 +126,6 @@ fun initFftData(length:Int){
     count=0
 }
 
-fun calculateAmplifier(data:ByteArray){
-    var baseFftData = baseFftLive.value ?: return
-    var amplifierList = LinkedList<Double>()
-    baseFftData.forEach {
-        amplifierList.add( data[it.first].toDouble()/it.second)
-    }
-    amplifierLive.postValue(amplifierList.average().toFloat())
-}
-
 fun resultListener(file:File, type: RecordType){
     when(type){
         RecordType.BABY -> {
@@ -145,20 +138,7 @@ fun resultListener(file:File, type: RecordType){
     typeSoundPaths[type] = file
 
     // clean directory every time so that only last file left
-    val directory = file.parentFile.listFiles()
+    file.parentFile.listFiles()
                                         .filter { !it.equals(file) }
                                         .forEach{it.delete()}
-}
-
-fun startPlaying( file:File?) {
-    val intent = Intent(context, PlayService::class.java)
-    intent.putExtra(ACTION_NAME, ACTION_START)
-    intent.putExtra(PARAM_PATH, file)
-    context?.startService(intent)
-}
-
-fun stopPlaying() {
-    val intent = Intent(context, PlayService::class.java)
-    intent.putExtra(ACTION_NAME, ACTION_STOP)
-    context?.startService(intent)
 }
