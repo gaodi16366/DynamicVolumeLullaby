@@ -71,11 +71,8 @@ fun setNextVolume(data:ByteArray){
 
         if(nextVolume > currentVolume){
             audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
-            currentVolumeLive.postValue(nextVolume)
         } else if (nextVolume < currentVolume){
             audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
-//            audioManager.adjustVolume(AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
-            currentVolumeLive.postValue(nextVolume)
         }
 
         // reset monitoring fft data
