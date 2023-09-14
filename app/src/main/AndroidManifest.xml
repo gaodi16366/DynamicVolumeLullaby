@@ -24,6 +24,7 @@
             </intent-filter>
         </activity>
         <service android:name="com.zlw.main.recorderlib.recorder.RecordService" />
+        <service android:name="com.example.dynamicvolumelullaby.PlayingService" />
     </application>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>

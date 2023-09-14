@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import java.io.File
 import java.util.Date
 import java.util.LinkedList
@@ -27,18 +28,15 @@ const val intervalSeconds = 5
 var monitorFftDataSum: DoubleArray = DoubleArray(sampleNumber){0.0}
 var previousMonitorDateTime: Date? = null
 var monitorCount:Int =0
-var playingStatus = PlayingStatus.STOP
-
-
-enum class PlayingStatus{
-    PLAY,
-    STOP,
-    PAUSE
-}
 
 class PlayingService:Service(), MediaPlayer.OnPreparedListener {
 
     private var mediaPlayer:MediaPlayer? =null
+
+    override fun onCreate() {
+        Log.i("playing service","playing service created")
+
+    }
 
     override fun onBind(intent: Intent?): IBinder? {
         return null
@@ -55,7 +53,7 @@ class PlayingService:Service(), MediaPlayer.OnPreparedListener {
                 ACTION_START -> {
                     var path=bundle.getString(PARAM_PATH)
                     var file=File(path)
-                    if (file.exists() && (mediaPlayer ==null || !mediaPlayer!!.isPlaying)){
+                    if (file.exists() && mediaPlayer ==null){
                         val myUri: Uri = Uri.fromFile(file) // initialize Uri here
                         mediaPlayer = MediaPlayer().apply {
                             setAudioAttributes(
@@ -66,18 +64,16 @@ class PlayingService:Service(), MediaPlayer.OnPreparedListener {
                             )
                             setDataSource(applicationContext, myUri)
                             isLooping = true
-                            prepareAsync()
                             setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
+                            setOnPreparedListener(this@PlayingService)
+                            prepareAsync()
                         }
-                        playingStatus = PlayingStatus.PLAY
                     }
                 }
                 ACTION_STOP -> {
-                    if (mediaPlayer?.isPlaying == true && playingStatus == PlayingStatus.PLAY){
                         mediaPlayer?.stop()
                         mediaPlayer?.release()
                         mediaPlayer = null
-                    }
                 }
                 else -> {
 
@@ -157,6 +153,7 @@ fun startPlaying(file: File?) {
     intent.putExtra(ACTION_NAME, ACTION_START)
     intent.putExtra(PARAM_PATH, file?.absolutePath)
     context?.startService(intent)
+    Log.i("playingservice","start service with %s".format(file?.absolutePath))
 }
 
 fun stopPlaying() {

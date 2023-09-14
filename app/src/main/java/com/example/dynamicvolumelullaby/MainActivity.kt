@@ -120,7 +120,9 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
             {
                 Image(painter = painterResource(R.drawable.baseline_stop_24), contentDescription = "Play")
             }
-            Button(onClick = { /*TODO*/ }) {
+            Button(onClick = {
+                startPlaying(typeSoundPaths[RecordType.BABY])
+            }) {
                 Image(painter = painterResource(R.drawable.baseline_play_arrow_24), contentDescription = "Play")
             }
             Button(onClick = {
