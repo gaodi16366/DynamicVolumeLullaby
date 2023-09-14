@@ -3,19 +3,25 @@ package com.example.dynamicvolumelullaby
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
 import android.media.AudioManager
+import android.media.MediaPlayer
+import android.net.Uri
 import android.os.Bundle
 import android.os.IBinder
+import android.os.PowerManager
+import android.util.Log
 import java.io.File
 import java.util.Date
 import java.util.LinkedList
 
-val ACTION_NAME = "action_type"
+const val ACTION_NAME = "action_type"
 
-val PARAM_PATH = "path"
+const val PARAM_PATH = "path"
 
-val ACTION_START = 1
-val ACTION_STOP = 2
+const val ACTION_INVALID =0
+const val ACTION_START = 1
+const val ACTION_STOP = 2
 
 // monitoring data and config
 const val intervalSeconds = 5
@@ -23,7 +29,14 @@ var monitorFftDataSum: DoubleArray = DoubleArray(sampleNumber){0.0}
 var previousMonitorDateTime: Date? = null
 var monitorCount:Int =0
 
-class PlayingService:Service() {
+class PlayingService:Service(), MediaPlayer.OnPreparedListener {
+
+    private var mediaPlayer:MediaPlayer? =null
+
+    override fun onCreate() {
+        Log.i("playing service","playing service created")
+
+    }
 
     override fun onBind(intent: Intent?): IBinder? {
         return null
@@ -34,8 +47,51 @@ class PlayingService:Service() {
             return super.onStartCommand(null, flags, startId)
         }
         var bundle:Bundle? = intent.extras
+        if (bundle !=null){
+            var action= bundle.getInt(ACTION_NAME, ACTION_INVALID)
+            when(action){
+                ACTION_START -> {
+                    var path=bundle.getString(PARAM_PATH)
+                    var file=File(path)
+                    if (file.exists() && mediaPlayer ==null){
+                        val myUri: Uri = Uri.fromFile(file) // initialize Uri here
+                        mediaPlayer = MediaPlayer().apply {
+                            setAudioAttributes(
+                                AudioAttributes.Builder()
+                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                                    .build()
+                            )
+                            setDataSource(applicationContext, myUri)
+                            isLooping = true
+                            setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
+                            setOnPreparedListener(this@PlayingService)
+                            prepareAsync()
+                        }
+                    }
+                }
+                ACTION_STOP -> {
+                        mediaPlayer?.stop()
+                        mediaPlayer?.release()
+                        mediaPlayer = null
+                }
+                else -> {
+
+                }
+            }
+
+        }
         // TODO
         return super.onStartCommand(intent, flags, startId)
+    }
+
+    override fun onPrepared(mp: MediaPlayer) {
+        mp.start()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaPlayer?.release()
     }
 }
 
@@ -89,14 +145,15 @@ fun setNextVolume(data:ByteArray){
     monitorCount++
 }
 
-fun startMonitoring(file: File?) {
+fun startPlaying(file: File?) {
     val intent = Intent(context, PlayingService::class.java)
     intent.putExtra(ACTION_NAME, ACTION_START)
-    intent.putExtra(PARAM_PATH, file)
+    intent.putExtra(PARAM_PATH, file?.absolutePath)
     context?.startService(intent)
+    Log.i("playingservice","start service with %s".format(file?.absolutePath))
 }
 
-fun stopMonitoring() {
+fun stopPlaying() {
     val intent = Intent(context, PlayingService::class.java)
     intent.putExtra(ACTION_NAME, ACTION_STOP)
     context?.startService(intent)
