@@ -46,7 +46,7 @@ class MainActivity : ComponentActivity() {
         applyPermission()
         context = this.application
         LoadSoundAndConfig()
-        val audioManager = context!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val audioManager = applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         currentVolumeLive.postValue(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
 
         setContent {
@@ -97,9 +97,11 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
     val maxVolume by maxVolumeLive.observeAsState()
     val currentVolume by currentVolumeLive.observeAsState()
     val baseFft:Array<Pair<Int,Double>>? by baseFftLive.observeAsState()
-
-    val audioManager = context!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    val volumeIndex = currentVolume!!.toFloat()/audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+    var volumeIndex = currentVolume!!/15f
+    if (context !=null){
+        val audioManager = context!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        volumeIndex = currentVolume!!.toFloat()/audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
+    }
 
     saveConfig()
 
@@ -121,8 +123,14 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
             Button(onClick = { /*TODO*/ }) {
                 Image(painter = painterResource(R.drawable.baseline_play_arrow_24), contentDescription = "Play")
             }
+            Button(onClick = {
+                stopPlaying()
+            })
+            {
+                Image(painter = painterResource(R.drawable.baseline_pause_24), contentDescription = "Play")
+            }
         }
-        Text(text = baseFft!!.joinToString("\n"), color = Orange)
+//        Text(text = baseFft!!.joinToString("\n"), color = Orange)
 
         Spacer(modifier = Modifier.height(40.dp))
 
@@ -131,7 +139,8 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
         Row(){
             Text(text = "basic volume ", color = Orange ,modifier = Modifier
                 .align(Alignment.CenterVertically)
-                .width(100.dp))
+                .width(100.dp)
+                .padding(start = 10.dp))
             Slider(value = basicVolume!!,
                 onValueChange ={
                     var nextBasicVolume =  if(it<minVolume!!){
@@ -148,7 +157,8 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
         Row(){
             Text(text = "min volume", color = Orange ,modifier = Modifier
                 .align(Alignment.CenterVertically)
-                .width(100.dp))
+                .width(100.dp)
+                .padding(start = 10.dp))
             Slider(value = minVolume!!,
                 onValueChange ={ minVolumeLive.postValue( min(it, basicVolume!!)) },
                 modifier = Modifier.padding(end= 10.dp))
@@ -156,7 +166,8 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
         Row(){
             Text(text = "max volume", color = Orange ,modifier = Modifier
                 .align(Alignment.CenterVertically)
-                .width(100.dp))
+                .width(100.dp)
+                .padding(start = 10.dp))
             Slider(value = maxVolume!!,
                 onValueChange ={ maxVolumeLive.postValue( max(it, basicVolume!!))},
                 modifier = Modifier.padding(end= 10.dp))
@@ -166,7 +177,8 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
                 color = Orange ,
                 modifier = Modifier
                     .align(Alignment.CenterVertically)
-                    .width(100.dp))
+                    .width(100.dp)
+                    .padding(start = 10.dp))
             Slider(value = volumeIndex,
                 onValueChange ={ /* nothing */},
                 modifier = Modifier
@@ -184,12 +196,12 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
                 Image(painter = painterResource(R.drawable.baseline_stop_24), contentDescription = "Play")
             }
             Button(onClick = {
-                startMonitoring(typeSoundPaths[RecordType.PARENT])
+                startPlaying(typeSoundPaths[RecordType.PARENT])
             }) {
                 Image(painter = painterResource(R.drawable.baseline_play_arrow_24), contentDescription = "Play")
             }
             Button(onClick = {
-                stopMonitoring()
+                stopPlaying()
             })
             {
                 Image(painter = painterResource(R.drawable.baseline_pause_24), contentDescription = "Play")
@@ -202,16 +214,14 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
         Row(){
             Button(onClick = {
                 recordSound(RecordType.MONITOR)
-                startMonitoring(typeSoundPaths[RecordType.PARENT])
             }) {
                 Image(painter = painterResource(R.drawable.baseline_play_arrow_24), contentDescription = "Play")
             }
             Button(onClick = {
                 stopRecord(RecordType.MONITOR)
-                stopMonitoring()
             })
             {
-                Image(painter = painterResource(R.drawable.baseline_pause_24), contentDescription = "Play")
+                Image(painter = painterResource(R.drawable.baseline_stop_24), contentDescription = "Play")
             }
         }
     }
