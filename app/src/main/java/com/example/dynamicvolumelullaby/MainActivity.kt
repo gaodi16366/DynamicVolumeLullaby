@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             DynamicVolumeLullabyTheme {
-                RenderApp()
+                ButtonAndImage(modifier = Modifier.fillMaxSize(), isPreview = false)
             }
         }
     }

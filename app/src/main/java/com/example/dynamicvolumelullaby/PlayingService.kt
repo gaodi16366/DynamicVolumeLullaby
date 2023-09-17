@@ -146,7 +146,7 @@ fun setNextVolume(data:ByteArray){
                 currentVivoVolume
             }
             mediaPlayer?.setVolume(nextVolumeInFloat, nextVolumeInFloat)
-            currentVolumeVivoLive.postValue(nextVolumeInFloat)
+            currentVolumeVivoLive.value = nextVolumeInFloat
         }else{
             val currentVolume = audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC)
             nextVolume *= audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
