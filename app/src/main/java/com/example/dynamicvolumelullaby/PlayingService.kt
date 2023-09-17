@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import com.example.dynamicvolumelullaby.utils.isVivo
 import java.io.File
 import java.util.Date
 import java.util.LinkedList
@@ -132,9 +133,19 @@ fun setNextVolume(data:ByteArray){
         })*audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()).toInt()
 
         if(nextVolume > currentVolume){
-            audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+            if(isVivo){
+                val nextVolumeInFloat = calculateVolume(currentVolume,AudioManager.ADJUST_RAISE)
+                mediaPlayer?.setVolume(nextVolumeInFloat, nextVolumeInFloat)
+            }else {
+                audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+            }
         } else if (nextVolume < currentVolume){
-            audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+            if(isVivo) {
+                val nextVolumeInFloat = calculateVolume(currentVolume,AudioManager.ADJUST_LOWER)
+                mediaPlayer?.setVolume(nextVolumeInFloat, nextVolumeInFloat)
+            }else{
+                audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+            }
         }
 
         // reset monitoring fft data
@@ -157,6 +168,11 @@ fun startPlaying(file: File?) {
     intent.putExtra(PARAM_PATH, file?.absolutePath)
     context?.startService(intent)
     Log.i("playingservice","start service with %s".format(file?.absolutePath))
+}
+
+fun calculateVolume(currentVolume:Int, direction: Int): Float{
+    val maxVolume = audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+    return (currentVolume + direction).toFloat()/maxVolume.toFloat()
 }
 
 fun stopPlaying() {
