@@ -12,6 +12,8 @@ import android.os.PowerManager
 import android.util.Log
 import com.example.dynamicvolumelullaby.utils.isVivo
 import java.io.File
+import java.lang.Float.max
+import java.lang.Float.min
 import java.util.Date
 import java.util.LinkedList
 
@@ -30,7 +32,7 @@ var previousMonitorDateTime: Date? = null
 var monitorCount:Int =0
 var audioSessionId:Int =-1
 
-private var mediaPlayer:MediaPlayer? =null
+var mediaPlayer:MediaPlayer? =null
 
 
 class PlayingService:Service(), MediaPlayer.OnPreparedListener {
@@ -69,6 +71,9 @@ class PlayingService:Service(), MediaPlayer.OnPreparedListener {
                             isLooping = true
                             setWakeMode(applicationContext, PowerManager.PARTIAL_WAKE_LOCK)
                             setOnPreparedListener(this@PlayingService)
+                            if (isVivo){
+                                setVolume(currentVolumeVivoLive.value!!, currentVolumeVivoLive.value!!)
+                            }
                             prepareAsync()
                         }
                     }
@@ -122,29 +127,34 @@ fun setNextVolume(data:ByteArray){
         val maxVolume = maxVolumeLive.value
         val minVolume = minVolumeLive.value
 
-        var currentVolume = audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC)
         val tempVolume = basicVolume!! * amplifier
-        val nextVolume =  ((if(tempVolume > maxVolume!!){
+
+        var nextVolume =  (if(tempVolume > maxVolume!!){
             maxVolume
         }else if (tempVolume < minVolume!!){
             minVolume
         }else{
             tempVolume
-        })*audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()).toInt()
-
-        if(nextVolume > currentVolume){
-            if(isVivo){
-                val nextVolumeInFloat = calculateVolume(currentVolume,AudioManager.ADJUST_RAISE)
-                mediaPlayer?.setVolume(nextVolumeInFloat, nextVolumeInFloat)
-            }else {
-                audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
-            }
-        } else if (nextVolume < currentVolume){
-            if(isVivo) {
-                val nextVolumeInFloat = calculateVolume(currentVolume,AudioManager.ADJUST_LOWER)
-                mediaPlayer?.setVolume(nextVolumeInFloat, nextVolumeInFloat)
+        })
+        if (isVivo){
+            val currentVivoVolume = currentVolumeVivoLive.value!!
+            val nextVolumeInFloat = if (nextVolume > currentVivoVolume){
+                 calculateVolume(currentVivoVolume,AudioManager.ADJUST_RAISE)
+            } else if (nextVolume < currentVivoVolume) {
+                calculateVolume(currentVivoVolume,AudioManager.ADJUST_LOWER)
             }else{
+                currentVivoVolume
+            }
+            mediaPlayer?.setVolume(nextVolumeInFloat, nextVolumeInFloat)
+            currentVolumeVivoLive.value = nextVolumeInFloat
+        }else{
+            val currentVolume = audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC)
+            nextVolume *= audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            if(nextVolume > currentVolume){
+                audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+            } else if (nextVolume < currentVolume){
                 audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+
             }
         }
 
@@ -170,9 +180,9 @@ fun startPlaying(file: File?) {
     Log.i("playingservice","start service with %s".format(file?.absolutePath))
 }
 
-fun calculateVolume(currentVolume:Int, direction: Int): Float{
+fun calculateVolume(currentVolume:Float, direction: Int): Float{
     val maxVolume = audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-    return (currentVolume + direction).toFloat()/maxVolume.toFloat()
+    return max(min(currentVolume + direction.toFloat()/maxVolume.toFloat(),1f),0f)
 }
 
 fun stopPlaying() {

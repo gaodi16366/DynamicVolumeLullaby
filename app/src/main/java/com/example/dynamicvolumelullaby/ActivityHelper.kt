@@ -10,6 +10,7 @@ import android.os.Looper
 import android.util.Log
 import android.widget.Toast
 import androidx.lifecycle.MutableLiveData
+import com.example.dynamicvolumelullaby.utils.isVivo
 import com.zlw.main.recorderlib.RecordManager
 import com.zlw.main.recorderlib.recorder.RecordConfig
 import com.zlw.main.recorderlib.recorder.RecordHelper
@@ -41,6 +42,7 @@ val basicVolumeLive  = MutableLiveData<Float>(0.5f)
 val minVolumeLive  = MutableLiveData<Float>(0.0f)
 val maxVolumeLive  = MutableLiveData<Float>(1.0f)
 val currentVolumeLive = MutableLiveData<Int>(7)
+val currentVolumeVivoLive = MutableLiveData<Float>(0.5f)
 val basicVolumeKey = "basicVolume"
 val minVolumeKey = "minVolume"
 val maxVolumeKey = "maxVolume"
@@ -186,12 +188,13 @@ fun loadSoundAndConfig(applicationContext: Context) {
     /* do nothing*/
     audioManager = applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-    applicationContext.contentResolver.registerContentObserver(android.provider.Settings.System.CONTENT_URI, true, VolumeContentObserver(
-        Handler(Looper.getMainLooper())
-    ))
-
-    // current volume event observer
-    currentVolumeLive.postValue(audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC))
+    if (!isVivo){
+        applicationContext.contentResolver.registerContentObserver(android.provider.Settings.System.CONTENT_URI, true, VolumeContentObserver(
+            Handler(Looper.getMainLooper())
+        ))
+        // get current volume from system
+        currentVolumeLive.postValue(audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC))
+    }
 
     // directory clean up
     var appDirectory:File = applicationContext!!.filesDir
@@ -227,5 +230,6 @@ fun loadSoundAndConfig(applicationContext: Context) {
         basicVolumeLive.postValue(basicVolume)
         baseFftLive.postValue(baseFftValue)
         soundEnhanceLive.postValue(soundEnhanceValue)
+        currentVolumeVivoLive.postValue(basicVolume)
     }
 }
