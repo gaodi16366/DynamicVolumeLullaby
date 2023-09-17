@@ -10,8 +10,6 @@ import android.os.Build
 import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Environment
-import android.os.Handler
-import android.os.Looper
 import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -37,12 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import com.example.dynamicvolumelullaby.ui.theme.DynamicVolumeLullabyTheme
 import com.example.dynamicvolumelullaby.ui.theme.Orange
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
-import java.io.OutputStream
 import java.lang.Float.max
-import java.util.Properties
 import kotlin.math.min
 
 const val configPath: String = "config.properties"
@@ -95,20 +88,22 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun ButtonAndImage(modifier: Modifier = Modifier){
+fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
     val basicVolume by basicVolumeLive.observeAsState()
     val minVolume by minVolumeLive.observeAsState()
     val maxVolume by maxVolumeLive.observeAsState()
     val currentVolume by currentVolumeLive.observeAsState()
     val baseFft:Array<Pair<Int,Double>>? by baseFftLive.observeAsState()
+    val soundEnhance by soundEnhanceLive.observeAsState()
     var volumeIndex = currentVolume!!/15f
     if (context !=null){
         val audioManager = context!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         volumeIndex = currentVolume!!.toFloat()/audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
     }
 
-    saveConfig()
-
+    if (!isPreview){
+        saveConfig()
+    }
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -175,7 +170,7 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
                 .width(100.dp)
                 .padding(start = 10.dp))
             Slider(value = maxVolume!!,
-                onValueChange ={ maxVolumeLive.postValue( max(it, basicVolume!!))},
+                onValueChange ={ maxVolumeLive.postValue( max(it, basicVolume!!)) },
                 modifier = Modifier.padding(end= 10.dp))
         }
         Row(){
@@ -189,6 +184,29 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
                 onValueChange ={ /* nothing */},
                 modifier = Modifier
                     .padding(end= 10.dp))
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+
+        Text(text = "Sound Enhancement", color = Orange)
+        Row(){
+            Button(onClick = {
+                decreaseAmplifier()
+            }) {
+                Image(painter = painterResource(R.drawable.minus), contentDescription = "Record")
+            }
+
+            Text(text = "%.1f dB".format(soundEnhance),
+            color = Orange,
+            modifier= Modifier
+                .align(Alignment.CenterVertically)
+                .padding(10.dp)
+            )
+
+            Button(onClick = {
+                increaseAmplifier()
+            }) {
+                Image(painter = painterResource(R.drawable.baseline_add_24), contentDescription = "Play")
+            }
         }
 
         Spacer(modifier = Modifier.height(40.dp))
@@ -237,6 +255,6 @@ fun ButtonAndImage(modifier: Modifier = Modifier){
 @Preview
 @Composable
 fun RenderApp(){
-    ButtonAndImage(modifier = Modifier.fillMaxSize())
+    ButtonAndImage(modifier = Modifier.fillMaxSize(), isPreview = true)
 }
 
