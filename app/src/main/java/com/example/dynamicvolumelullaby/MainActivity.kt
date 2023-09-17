@@ -6,8 +6,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
 import android.net.Uri
-import android.os.Build
-import android.os.Build.VERSION.SDK_INT
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
@@ -44,8 +42,11 @@ const val configPath: String = "config.properties"
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        applyPermission()
         context = this.application
+        applyPermission()
+    }
+
+    fun afterPermission() {
         loadSoundAndConfig(applicationContext)
 
         setContent {
@@ -56,34 +57,16 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyPermission(){
-        if (SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
-                val uri = Uri.fromParts(
-                    "package",
-                    packageName, null
-                )
-                intent.data = uri
-                startActivity(intent)
+        val requestFileAccess = !Environment.isExternalStorageManager()
+        val requestMic = ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
+        if (requestFileAccess || requestMic){
+            setContent{
+                DynamicVolumeLullabyTheme {
+                    RenderRequestPage(activity = this, requestFileAccess, requestMic)
+                }
             }
-        } else {
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.READ_EXTERNAL_STORAGE
-                ) != PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.WRITE_EXTERNAL_STORAGE
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf<String>(
-                        Manifest.permission.READ_EXTERNAL_STORAGE,
-                        Manifest.permission.WRITE_EXTERNAL_STORAGE
-                    ),
-                    1
-                )
-            }
+        }else{
+            afterPermission()
         }
     }
 
@@ -267,5 +250,38 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
 @Composable
 fun RenderApp(){
     ButtonAndImage(modifier = Modifier.fillMaxSize(), isPreview = true)
+}
+
+@Composable
+fun RenderRequestPage(activity:MainActivity, requestFileAccess:Boolean, requestMic:Boolean){
+    Column(modifier = Modifier.fillMaxSize()) {
+        Text(text = "Need Access all files and mic permissions.", modifier = Modifier.align(
+            Alignment.CenterHorizontally
+        ))
+        Button(onClick = {
+            if (requestFileAccess){
+                val intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                val uri = Uri.fromParts(
+                    "package",
+                    activity.packageName, null
+                )
+                intent.data = uri
+                activity.startActivity(intent)
+            }
+            if (requestMic){
+                ActivityCompat.requestPermissions(
+                    activity,
+                    arrayOf<String>(
+                        Manifest.permission.RECORD_AUDIO
+                    ),
+                    1
+                )
+            }
+            activity.afterPermission()
+        },
+            modifier = Modifier.align(Alignment.CenterHorizontally)){
+            Text(text = "Continue")
+        }
+    }
 }
 
