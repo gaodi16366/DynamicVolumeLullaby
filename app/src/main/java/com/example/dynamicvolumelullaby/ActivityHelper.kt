@@ -45,9 +45,11 @@ val basicVolumeKey = "basicVolume"
 val minVolumeKey = "minVolume"
 val maxVolumeKey = "maxVolume"
 val baseFftKey = "baseFft"
+val enhanceKey = "enhance"
 
 var typeSoundPaths:MutableMap<RecordType,File> = HashMap()
 
+var audioManager:AudioManager? = null
 
 fun recordSound(type: RecordType){
     val appDirectory: File = context!!.filesDir
@@ -175,19 +177,21 @@ fun saveConfig() {
     props.setProperty(maxVolumeKey, maxVolumeLive.value.toString())
     props.setProperty(basicVolumeKey, basicVolumeLive.value.toString())
     props.setProperty(baseFftKey, baseFftLive.value?.joinToString(";"))
+    props.setProperty(enhanceKey, soundEnhanceLive.value.toString())
     props.store(outputStream,"this is config for dynamic volume lullaby")
 }
 
 
 fun loadSoundAndConfig(applicationContext: Context) {
     /* do nothing*/
+    audioManager = applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-    // current volume event observer
-    val audioManager = applicationContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    currentVolumeLive.postValue(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC))
-    applicationContext.contentResolver.registerContentObserver(android.provider.Settings.System.CONTENT_URI, true, VolumeContentObserver(applicationContext,
+    applicationContext.contentResolver.registerContentObserver(android.provider.Settings.System.CONTENT_URI, true, VolumeContentObserver(
         Handler(Looper.getMainLooper())
     ))
+
+    // current volume event observer
+    currentVolumeLive.postValue(audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC))
 
     // directory clean up
     var appDirectory:File = applicationContext!!.filesDir
@@ -216,10 +220,12 @@ fun loadSoundAndConfig(applicationContext: Context) {
             val pair:Pair<Int,Double> = Pair(stringList[0].toInt(),stringList[1].toDouble())
             baseFftValue[index]=pair
         }
+        val soundEnhanceValue = props.getProperty(enhanceKey)?.toFloat()?:0f
 
         minVolumeLive.postValue(minVolume)
         maxVolumeLive.postValue(maxVolume)
         basicVolumeLive.postValue(basicVolume)
         baseFftLive.postValue(baseFftValue)
+        soundEnhanceLive.postValue(soundEnhanceValue)
     }
 }

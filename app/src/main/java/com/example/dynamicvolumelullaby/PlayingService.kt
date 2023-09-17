@@ -1,7 +1,6 @@
 package com.example.dynamicvolumelullaby
 
 import android.app.Service
-import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -28,10 +27,12 @@ const val intervalSeconds = 5
 var monitorFftDataSum: DoubleArray = DoubleArray(sampleNumber){0.0}
 var previousMonitorDateTime: Date? = null
 var monitorCount:Int =0
+var audioSessionId:Int =-1
+
+private var mediaPlayer:MediaPlayer? =null
+
 
 class PlayingService:Service(), MediaPlayer.OnPreparedListener {
-
-    private var mediaPlayer:MediaPlayer? =null
 
     override fun onCreate() {
         Log.i("playing service","playing service created")
@@ -42,17 +43,18 @@ class PlayingService:Service(), MediaPlayer.OnPreparedListener {
         return null
     }
 
+
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent == null){
             return super.onStartCommand(null, flags, startId)
         }
-        var bundle:Bundle? = intent.extras
+        val bundle:Bundle? = intent.extras
         if (bundle !=null){
-            var action= bundle.getInt(ACTION_NAME, ACTION_INVALID)
-            when(action){
+            when(bundle.getInt(ACTION_NAME, ACTION_INVALID)){
                 ACTION_START -> {
-                    var path=bundle.getString(PARAM_PATH)
-                    var file=File(path)
+                    val path=bundle.getString(PARAM_PATH)
+                    val file=File(path)
                     if (file.exists() && mediaPlayer ==null){
                         val myUri: Uri = Uri.fromFile(file) // initialize Uri here
                         mediaPlayer = MediaPlayer().apply {
@@ -74,6 +76,8 @@ class PlayingService:Service(), MediaPlayer.OnPreparedListener {
                         mediaPlayer?.stop()
                         mediaPlayer?.release()
                         mediaPlayer = null
+                        audioSessionId = -1
+                        initAndSetEnhancer()
                 }
                 else -> {
 
@@ -87,11 +91,14 @@ class PlayingService:Service(), MediaPlayer.OnPreparedListener {
 
     override fun onPrepared(mp: MediaPlayer) {
         mp.start()
+        initAndSetEnhancer()
+        audioSessionId=mp.audioSessionId
     }
 
     override fun onDestroy() {
         super.onDestroy()
         mediaPlayer?.release()
+        audioSessionId=-1
     }
 }
 
@@ -114,8 +121,7 @@ fun setNextVolume(data:ByteArray){
         val maxVolume = maxVolumeLive.value
         val minVolume = minVolumeLive.value
 
-        val audioManager = context!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        var currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        var currentVolume = audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC)
         val tempVolume = basicVolume!! * amplifier
         val nextVolume =  ((if(tempVolume > maxVolume!!){
             maxVolume
@@ -123,12 +129,12 @@ fun setNextVolume(data:ByteArray){
             minVolume
         }else{
             tempVolume
-        })*audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()).toInt()
+        })*audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()).toInt()
 
         if(nextVolume > currentVolume){
-            audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+            audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
         } else if (nextVolume < currentVolume){
-            audioManager.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+            audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
         }
 
         // reset monitoring fft data
