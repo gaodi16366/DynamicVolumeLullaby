@@ -29,12 +29,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import com.example.dynamicvolumelullaby.ui.theme.DynamicVolumeLullabyTheme
 import com.example.dynamicvolumelullaby.ui.theme.Orange
+import com.example.dynamicvolumelullaby.utils.isVivo
 import java.lang.Float.max
 import kotlin.math.min
 
@@ -93,16 +95,19 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
     val minVolume by minVolumeLive.observeAsState()
     val maxVolume by maxVolumeLive.observeAsState()
     val currentVolume by currentVolumeLive.observeAsState()
+    val currentVivoVolume by currentVolumeVivoLive.observeAsState()
     val baseFft:Array<Pair<Int,Double>>? by baseFftLive.observeAsState()
     val soundEnhance by soundEnhanceLive.observeAsState()
-    var volumeIndex = currentVolume!!/15f
-    if (context !=null){
-        val audioManager = context!!.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-        volumeIndex = currentVolume!!.toFloat()/audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC).toFloat()
-    }
+    val sysMaxVolume = audioManager?.getStreamMaxVolume(AudioManager.STREAM_MUSIC)?:15f
+    var volumeIndex = basicVolume!!
 
     if (!isPreview){
         saveConfig()
+        volumeIndex =if (isVivo){
+            currentVivoVolume!!
+        }else{
+            currentVolume!!.toFloat()/sysMaxVolume.toFloat()
+        }
     }
     Column(
         modifier = modifier,
@@ -173,6 +178,9 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
                 onValueChange ={ maxVolumeLive.postValue( max(it, basicVolume!!)) },
                 modifier = Modifier.padding(end= 10.dp))
         }
+        if (isPreview || isVivo){
+            Text(text = "VIVO: media player's volume, not system volume", color = Color.Red)
+        }
         Row(){
             Text(text = "current volume",
                 color = Orange ,
@@ -235,6 +243,9 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
         Spacer(modifier = Modifier.height(40.dp))
 
         Text(text = "Monitor baby sound", color = Orange)
+        if (isPreview || isVivo){
+            Text(text = "VIVO: will change media player's volume, not system volume", color = Color.Red)
+        }
         Row(){
             Button(onClick = {
                 recordSound(RecordType.MONITOR)
