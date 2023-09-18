@@ -1,10 +1,10 @@
 package com.example.dynamicvolumelullaby
 
 import android.Manifest
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
+import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Bundle
 import android.os.Environment
@@ -37,6 +37,7 @@ import com.example.dynamicvolumelullaby.ui.theme.Orange
 import com.example.dynamicvolumelullaby.utils.isVivo
 import java.lang.Float.max
 import kotlin.math.min
+
 
 const val configPath: String = "config.properties"
 class MainActivity : ComponentActivity() {
@@ -121,7 +122,7 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
         }
 //        Text(text = baseFft!!.joinToString("\n"), color = Orange)
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(text = "Volume", color = Orange)
 
@@ -177,30 +178,30 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
                     .padding(end= 10.dp))
         }
         Spacer(modifier = Modifier.height(10.dp))
+//
+//        Text(text = "Sound Enhancement", color = Orange)
+//        Row(){
+//            Button(onClick = {
+//                decreaseAmplifier()
+//            }) {
+//                Image(painter = painterResource(R.drawable.minus), contentDescription = "Record")
+//            }
+//
+//            Text(text = "%.1f dB".format(soundEnhance),
+//            color = Orange,
+//            modifier= Modifier
+//                .align(Alignment.CenterVertically)
+//                .padding(10.dp)
+//            )
+//
+//            Button(onClick = {
+//                increaseAmplifier()
+//            }) {
+//                Image(painter = painterResource(R.drawable.baseline_add_24), contentDescription = "Play")
+//            }
+//        }
 
-        Text(text = "Sound Enhancement", color = Orange)
-        Row(){
-            Button(onClick = {
-                decreaseAmplifier()
-            }) {
-                Image(painter = painterResource(R.drawable.minus), contentDescription = "Record")
-            }
-
-            Text(text = "%.1f dB".format(soundEnhance),
-            color = Orange,
-            modifier= Modifier
-                .align(Alignment.CenterVertically)
-                .padding(10.dp)
-            )
-
-            Button(onClick = {
-                increaseAmplifier()
-            }) {
-                Image(painter = painterResource(R.drawable.baseline_add_24), contentDescription = "Play")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(text = "Your sound", color = Orange)
         Row(){
@@ -223,7 +224,7 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
             }
         }
 
-        Spacer(modifier = Modifier.height(40.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(text = "Monitor baby sound", color = Orange)
         if (isPreview || isVivo){
@@ -239,6 +240,75 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
                 stopRecord(RecordType.MONITOR)
             })
             {
+                Image(painter = painterResource(R.drawable.baseline_stop_24), contentDescription = "Play")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Text(text = "White noise", color = Orange)
+        Row(){
+            Button(onClick = {
+                stopPlaying()
+                startPlaying(R.raw.pure_10min)
+            }){
+                Text(text = "Pure")
+            }
+            Button(onClick = {
+                stopPlaying()
+                startPlaying(R.raw.blender_10min)
+            }){
+                Text(text = "Blender")
+            }
+            Button(onClick = {
+                stopPlaying()
+                startPlaying(R.raw.fan_10min)
+            }){
+                Text(text = "Fan")
+            }
+        }
+        Row(){
+            Button(onClick = {
+                stopPlaying()
+                startPlaying(R.raw.ocean_10min)
+            }){
+                Text(text = "Ocean")
+            }
+            Button(onClick = {
+                stopPlaying()
+                startPlaying(R.raw.rain_10min)
+            }){
+                Text(text = "Rain")
+            }
+            Button(onClick = {
+                stopPlaying()
+                startPlaying(R.raw.waterfall_10min)
+            }){
+                Text(text = "Waterfall")
+            }
+        }
+        Row(){
+            Button(onClick = {
+                stopPlaying()
+                startPlaying(R.raw.underwater_10min)
+            }){
+                Text(text = "Underwater")
+            }
+            Button(onClick = {
+                stopPlaying()
+                startPlaying(R.raw.train_10min)
+            }){
+                Text(text = "Train")
+            }
+            Button(onClick = {
+                stopPlaying()
+                startPlaying(R.raw.waves_10min)
+            }){
+                Text(text = "Waves")
+            }
+            Button(onClick = {
+                stopPlaying()
+            }){
                 Image(painter = painterResource(R.drawable.baseline_stop_24), contentDescription = "Play")
             }
         }

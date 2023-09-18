@@ -1,6 +1,8 @@
 package com.example.dynamicvolumelullaby
 
 import android.app.Service
+import android.content.ContentResolver
+import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioManager
@@ -10,6 +12,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import androidx.annotation.AnyRes
 import com.example.dynamicvolumelullaby.utils.isVivo
 import java.io.File
 import java.lang.Float.max
@@ -17,8 +20,8 @@ import java.lang.Float.min
 import java.util.Date
 import java.util.LinkedList
 
+const val PARAM_RESOURCE_ID = "resource_id"
 const val ACTION_NAME = "action_type"
-
 const val PARAM_PATH = "path"
 
 const val ACTION_INVALID =0
@@ -57,9 +60,15 @@ class PlayingService:Service(), MediaPlayer.OnPreparedListener {
             when(bundle.getInt(ACTION_NAME, ACTION_INVALID)){
                 ACTION_START -> {
                     val path=bundle.getString(PARAM_PATH)
-                    val file=File(path)
-                    if (file.exists() && mediaPlayer ==null){
-                        val myUri: Uri = Uri.fromFile(file) // initialize Uri here
+                    val resourceId = bundle.getInt(PARAM_RESOURCE_ID)
+
+                    if ((path !=null || resourceId > 0) && mediaPlayer ==null){
+                        val myUri: Uri = if (path !=null){
+                            Uri.fromFile(File(path)) // initialize Uri here
+                        } else {
+                            getResourceUri(resourceId)
+                        }
+
                         mediaPlayer = MediaPlayer().apply {
                             setAudioAttributes(
                                 AudioAttributes.Builder()
@@ -177,7 +186,15 @@ fun startPlaying(file: File?) {
     intent.putExtra(ACTION_NAME, ACTION_START)
     intent.putExtra(PARAM_PATH, file?.absolutePath)
     context?.startService(intent)
-    Log.i("playingservice","start service with %s".format(file?.absolutePath))
+    Log.i("playing service","start service with %s".format(file?.absolutePath))
+}
+
+fun startPlaying(resourceId: Int) {
+    val intent = Intent(context, PlayingService::class.java)
+    intent.putExtra(ACTION_NAME, ACTION_START)
+    intent.putExtra(PARAM_RESOURCE_ID, resourceId)
+    context?.startService(intent)
+    Log.i("playing service","start service with %d".format(resourceId))
 }
 
 fun calculateVolume(currentVolume:Float, direction: Int): Float{
@@ -190,3 +207,13 @@ fun stopPlaying() {
     intent.putExtra(ACTION_NAME, ACTION_STOP)
     context?.startService(intent)
 }
+
+/**
+ * @param resourceId identifies an application resource
+ * @return the Uri by which the application resource is accessed
+ */
+internal fun Context.getResourceUri(@AnyRes resourceId: Int): Uri = Uri.Builder()
+    .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+    .authority(packageName)
+    .path(resourceId.toString())
+    .build()
