@@ -250,19 +250,19 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
         Row(){
             Button(onClick = {
                 stopPlaying()
-                startPlaying(R.raw.pure_10min)
+                startPlaying(R.raw.pure)
             }){
                 Text(text = "Pure")
             }
             Button(onClick = {
                 stopPlaying()
-                startPlaying(R.raw.blender_10min)
+                startPlaying(R.raw.blender)
             }){
                 Text(text = "Blender")
             }
             Button(onClick = {
                 stopPlaying()
-                startPlaying(R.raw.fan_10min)
+                startPlaying(R.raw.fan)
             }){
                 Text(text = "Fan")
             }
@@ -270,19 +270,19 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
         Row(){
             Button(onClick = {
                 stopPlaying()
-                startPlaying(R.raw.ocean_10min)
+                startPlaying(R.raw.ocean)
             }){
                 Text(text = "Ocean")
             }
             Button(onClick = {
                 stopPlaying()
-                startPlaying(R.raw.rain_10min)
+                startPlaying(R.raw.rain)
             }){
                 Text(text = "Rain")
             }
             Button(onClick = {
                 stopPlaying()
-                startPlaying(R.raw.waterfall_10min)
+                startPlaying(R.raw.waterfall)
             }){
                 Text(text = "Waterfall")
             }
@@ -290,19 +290,19 @@ fun ButtonAndImage(modifier: Modifier = Modifier, isPreview:Boolean = false){
         Row(){
             Button(onClick = {
                 stopPlaying()
-                startPlaying(R.raw.underwater_10min)
+                startPlaying(R.raw.underwater)
             }){
                 Text(text = "Underwater")
             }
             Button(onClick = {
                 stopPlaying()
-                startPlaying(R.raw.train_10min)
+                startPlaying(R.raw.train)
             }){
                 Text(text = "Train")
             }
             Button(onClick = {
                 stopPlaying()
-                startPlaying(R.raw.waves_10min)
+                startPlaying(R.raw.waves)
             }){
                 Text(text = "Waves")
             }
