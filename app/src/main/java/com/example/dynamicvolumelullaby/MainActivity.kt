@@ -342,7 +342,8 @@ fun RenderRequestPage(activity:MainActivity, requestFileAccess:Boolean, requestM
                 ActivityCompat.requestPermissions(
                     activity,
                     arrayOf<String>(
-                        Manifest.permission.RECORD_AUDIO
+                        Manifest.permission.RECORD_AUDIO,
+                        Manifest.permission.MODIFY_AUDIO_SETTINGS
                     ),
                     1
                 )

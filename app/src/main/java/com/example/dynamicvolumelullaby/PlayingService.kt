@@ -14,11 +14,14 @@ import android.os.PowerManager
 import android.util.Log
 import androidx.annotation.AnyRes
 import com.example.dynamicvolumelullaby.utils.isVivo
+import fftlib.ByteUtils
+import fftlib.FFT
+import org.apache.commons.math3.stat.regression.OLSMultipleLinearRegression
 import java.io.File
 import java.lang.Float.max
 import java.lang.Float.min
 import java.util.Date
-import java.util.LinkedList
+
 
 const val PARAM_RESOURCE_ID = "resource_id"
 const val ACTION_NAME = "action_type"
@@ -108,6 +111,7 @@ class PlayingService:Service(), MediaPlayer.OnPreparedListener {
         mp.start()
         initAndSetEnhancer()
         audioSessionId=mp.audioSessionId
+        initVisualizer(audioSessionId)
     }
 
     override fun onDestroy() {
@@ -118,67 +122,88 @@ class PlayingService:Service(), MediaPlayer.OnPreparedListener {
 }
 
 fun setNextVolume(data:ByteArray){
+    val doubles: DoubleArray = ByteUtils.toHardDouble(ByteUtils.toShorts(data))
+    val fft = FFT.fft(doubles, 0)
     val currentDate:Date = Date()
     if (previousMonitorDateTime == null){
         previousMonitorDateTime = currentDate
     }
     var baseFftData = baseFftLive.value ?: return
-    var amplifierList = LinkedList<Double>()
 
     if ((currentDate.time - previousMonitorDateTime!!.time)/1000 >= intervalSeconds && monitorCount > 0){
-        // need volume adjustment
-        for (i in 0 until sampleNumber){
-            amplifierList.add(monitorFftDataSum!![i]/baseFftData[i].second/ monitorCount)
-        }
-        val amplifier=amplifierList.average().toFloat()
+        synchronized(fftDataLock){
+            // need volume adjustment
+            val amplifier = calculateAmplifier(baseFftData)
 
-        val basicVolume = basicVolumeLive.value
-        val maxVolume = maxVolumeLive.value
-        val minVolume = minVolumeLive.value
+            val basicVolume = basicVolumeLive.value
+            val maxVolume = maxVolumeLive.value
+            val minVolume = minVolumeLive.value
 
-        val tempVolume = basicVolume!! * amplifier
+            val tempVolume = basicVolume!! * amplifier
 
-        var nextVolume =  (if(tempVolume > maxVolume!!){
-            maxVolume
-        }else if (tempVolume < minVolume!!){
-            minVolume
-        }else{
-            tempVolume
-        })
-        if (isVivo){
-            val currentVivoVolume = currentVolumeVivoLive.value!!
-            val nextVolumeInFloat = if (nextVolume > currentVivoVolume){
-                 calculateVolume(currentVivoVolume,AudioManager.ADJUST_RAISE)
-            } else if (nextVolume < currentVivoVolume) {
-                calculateVolume(currentVivoVolume,AudioManager.ADJUST_LOWER)
+            var nextVolume =  (if(tempVolume > maxVolume!!){
+                maxVolume
+            }else if (tempVolume < minVolume!!){
+                minVolume
             }else{
-                currentVivoVolume
-            }
-            mediaPlayer?.setVolume(nextVolumeInFloat, nextVolumeInFloat)
-            currentVolumeVivoLive.value = nextVolumeInFloat
-        }else{
-            val currentVolume = audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC)
-            nextVolume *= audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
-            if(nextVolume > currentVolume){
-                audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
-            } else if (nextVolume < currentVolume){
-                audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
+                tempVolume
+            })
+            if (isVivo){
+                val currentVivoVolume = currentVolumeVivoLive.value!!
+                val nextVolumeInFloat = if (nextVolume > currentVivoVolume){
+                    calculateVolume(currentVivoVolume,AudioManager.ADJUST_RAISE)
+                } else if (nextVolume < currentVivoVolume) {
+                    calculateVolume(currentVivoVolume,AudioManager.ADJUST_LOWER)
+                }else{
+                    currentVivoVolume
+                }
+                mediaPlayer?.setVolume(nextVolumeInFloat, nextVolumeInFloat)
+                currentVolumeVivoLive.value = nextVolumeInFloat
+            }else{
+                val currentVolume = audioManager!!.getStreamVolume(AudioManager.STREAM_MUSIC)
+                nextVolume *= audioManager!!.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+                if(nextVolume > currentVolume){
+                    audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_RAISE, AudioManager.FLAG_SHOW_UI)
+                } else if (nextVolume < currentVolume){
+                    audioManager!!.adjustStreamVolume(AudioManager.STREAM_MUSIC,AudioManager.ADJUST_LOWER, AudioManager.FLAG_SHOW_UI)
 
+                }
             }
+
+            // reset monitoring fft data
+            monitorFftDataSum = DoubleArray(sampleNumber){0.0}
+            monitorCount = 0
+            previousMonitorDateTime = currentDate
+            cleanAudioFft()
         }
-
-        // reset monitoring fft data
-        monitorFftDataSum = DoubleArray(sampleNumber){0.0}
-        monitorCount = 0
-        previousMonitorDateTime = currentDate
     }
 
     // add data to monitorFftDataSum
     for (i in 0 until sampleNumber){
         val index=baseFftData[i].first
-        monitorFftDataSum[i] += data[index].toDouble()
+        monitorFftDataSum[i] += fft[index]
     }
     monitorCount++
+}
+
+private fun calculateAmplifier(
+    baseFftData: Array<Pair<Int, Double>>
+): Float {
+    val monitoringFftDataAvg = monitorFftDataSum.map() { it -> it/ monitorCount }.toDoubleArray()
+    val amplifier1 = monitoringFftDataAvg.mapIndexed(){index, it -> it/baseFftData[index].second}.average().toFloat()
+    val audioFftDataAvg = DoubleArray(sampleNumber){0.0}
+    baseFftData.forEachIndexed { index, pair -> audioFftDataAvg[index] = audioFftSum[pair.first] / audioFftCount }
+
+    val regression = OLSMultipleLinearRegression()
+    val x = Array(sampleNumber){
+        arrayOf(baseFftData[it].second,audioFftDataAvg[it]).toDoubleArray()
+    }
+    regression.newSampleData(monitoringFftDataAvg,x)
+    val beta = regression.estimateRegressionParameters()
+    if (beta[0]>0 && beta[1] >0){
+        return beta[0].toFloat()
+    }
+    return amplifier1
 }
 
 fun startPlaying(file: File?) {

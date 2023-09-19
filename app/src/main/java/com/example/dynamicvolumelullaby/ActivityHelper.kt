@@ -3,7 +3,6 @@ package com.example.dynamicvolumelullaby
 import android.app.Application
 import android.content.Context
 import android.media.AudioFormat
-import android.media.AudioFormat.CHANNEL_IN_STEREO
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
@@ -14,6 +13,8 @@ import com.example.dynamicvolumelullaby.utils.isVivo
 import com.zlw.main.recorderlib.RecordManager
 import com.zlw.main.recorderlib.recorder.RecordConfig
 import com.zlw.main.recorderlib.recorder.RecordHelper
+import fftlib.ByteUtils
+import fftlib.FFT
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -53,6 +54,8 @@ var typeSoundPaths:MutableMap<RecordType,File> = HashMap()
 
 var audioManager:AudioManager? = null
 
+const val SOUND_RATE = 48000
+
 fun recordSound(type: RecordType){
     val appDirectory: File = context!!.filesDir
     val directory: File = File(appDirectory, type.toString())
@@ -66,19 +69,19 @@ fun recordSound(type: RecordType){
         cleanRmListener(rm)
         rm.init(context,false)
         rm.changeRecordDir(directory.path+"/")
-        rm.recordConfig.sampleRate = 44100
+        rm.recordConfig.sampleRate = SOUND_RATE
         rm.recordConfig.channelConfig= AudioFormat.CHANNEL_IN_MONO
         rm.changeFormat(RecordConfig.RecordFormat.MP3)
         if(type == RecordType.BABY){
             cleanFftData()
-            rm.setRecordFftDataListener { recordFftData(it) }
+            rm.setRecordDataListener { recordFftData(it) }
         }
         if (type == RecordType.MONITOR){
             if (baseFftLive.value!!.isEmpty() ||baseFftLive.value!!.any { it.second< 0.001 }){
                 Toast.makeText(context,"Baby sound not recorded or too low to record correctly", Toast.LENGTH_SHORT).show()
                 return
             }
-            rm.setRecordFftDataListener{
+            rm.setRecordDataListener{
                 setNextVolume(it)
             }
         }
@@ -95,6 +98,7 @@ fun recordSound(type: RecordType){
 fun cleanRmListener(rm: RecordManager) {
     rm.setRecordResultListener(null)
     rm.setRecordFftDataListener(null)
+    rm.setRecordDataListener(null)
 }
 
 
@@ -117,7 +121,9 @@ fun stopRecord(type: RecordType){
 }
 
 fun recordFftData(data:ByteArray){
-    val length:Int = min(fftDataSum?.size ?: data.size, data.size)
+    val doubles = ByteUtils.toHardDouble(ByteUtils.toShorts(data))
+    val fft = FFT.fft(doubles, 0)
+    val length:Int = min(fftDataSum?.size ?: fft.size, fft.size)
 
     // init fft data
     if (fftDataSum == null) {
@@ -125,7 +131,7 @@ fun recordFftData(data:ByteArray){
     }
     count++
     for (i in 0 until length){
-        fftDataSum!![i] += data[i].toDouble()
+        fftDataSum!![i] += fft[i]
     }
 }
 
